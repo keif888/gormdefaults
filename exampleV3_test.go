@@ -7,11 +7,12 @@ import (
 )
 
 //*****************************************************************************
-// The following tests show that using a Pointer based type allows zero's and empty strings to apply
+// The following tests show that using a Pointer based type allows zero's and empty strings to be applied
 // Create does not apply ddl level defaults.
+// Create does allow zero/empty pointer fields, but not other fields
+// Create using Omit for the ddl level columns allows the db to apply ddl level defaults.
 // Save on top of an existing record sets all columns in the struct.
 // Save without a PK, does not apply ddl level defaults.
-// Create using Omit for the ddl level columns allows the db to apply ddl level defaults.
 // Updates from a struct applies zero/empty pointer fields, but not other fields
 // UpdateColumns from a struct applies zero/empty pointer fields, but not other fields
 // Updates from a map does apply zero/empty fields
@@ -363,12 +364,12 @@ func TestExampleV3(t *testing.T) {
 		} else if assert.GreaterOrEqual(t, r8.ID, uint(1)) {
 			// The insert doesn't select columns the omitted columns, so they are 0 or empty
 			assert.Equal(t, "", r8.NameNoDefault)
-			assert.Equal(t, "", *r8.NameBlankDefault) // <-- Gets Gorm Default
-			assert.Equal(t, "", *r8.NameTextDefault)  // <-- Gets Gorm Default
+			assert.Equal(t, "", *r8.NameBlankDefault)
+			assert.Equal(t, "", *r8.NameTextDefault)
 			assert.Equal(t, "", r8.NameDBDefault)
 			assert.Equal(t, 0, r8.InStockNoDefault)
-			assert.Equal(t, 0, *r8.InStockNumberDefault) // <-- Gets Gorm Default
-			assert.Equal(t, 0, *r8.InStockZeroDefault)   // <-- Gets Gorm Default
+			assert.Equal(t, 0, *r8.InStockNumberDefault)
+			assert.Equal(t, 0, *r8.InStockZeroDefault)
 			assert.Equal(t, 0, r8.InStockDBDefault)
 
 			r8.NameNoDefault = ""
@@ -394,6 +395,38 @@ func TestExampleV3(t *testing.T) {
 			assert.Equal(t, 0, *r8.InStockNumberDefault)
 			assert.Equal(t, 0, *r8.InStockZeroDefault)
 			assert.Equal(t, 0, r8.InStockDBDefault)
+		}
+	})
+
+	t.Run("CreateAllWithZero", func(t *testing.T) {
+		//*******************************************************************************************************
+		// Create a new record with all columns set to empty or 0.
+		// This shows that Create applies empty string and 0 to Pointer fields.
+		//*******************************************************************************************************
+
+		r9 := Itemv3{
+			NameNoDefault:        "",
+			NameBlankDefault:     new(""),
+			NameTextDefault:      new(""),
+			NameDBDefault:        "",
+			InStockNoDefault:     0,
+			InStockNumberDefault: new(0),
+			InStockZeroDefault:   new(0),
+			InStockDBDefault:     0,
+		}
+
+		// INSERT INTO `itemv3` (`name_no_default`,`name_blank_default`,`name_text_default`,`name_db_default`,`in_stock_no_default`,`in_stock_zero_default`,`in_stock_number_default`,`in_stock_db_default`,`created_at`,`updated_at`,`deleted_at`) VALUES ("","","","",0,0,0,0,"2026-06-19 23:00:17.059","2026-06-19 23:00:17.059",NULL) RETURNING `id`
+		if !assert.NoError(t, dbV2.Create(&r9).Error) {
+			return
+		} else if assert.GreaterOrEqual(t, r9.ID, uint(1)) {
+			assert.Equal(t, "", r9.NameNoDefault)
+			assert.Equal(t, "", *r9.NameBlankDefault)
+			assert.Equal(t, "", *r9.NameTextDefault)
+			assert.Equal(t, "", r9.NameDBDefault)
+			assert.Equal(t, 0, r9.InStockNoDefault)
+			assert.Equal(t, 0, *r9.InStockNumberDefault)
+			assert.Equal(t, 0, *r9.InStockZeroDefault)
+			assert.Equal(t, 0, r9.InStockDBDefault)
 		}
 	})
 }

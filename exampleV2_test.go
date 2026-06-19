@@ -9,9 +9,10 @@ import (
 //*****************************************************************************
 // The following tests show that V1 and V2 have the same issues for defaults.
 // Create does not apply ddl level defaults.
+// Create does not allow zero/empty fields for fields with defaults.
+// Create using Omit for the ddl level columns allows the db to apply ddl level defaults.
 // Save on top of an existing record sets all columns in the struct.
 // Save without a PK, does not apply ddl level defaults.
-// Create using Omit for the ddl level columns allows the db to apply ddl level defaults.
 // Updates from a struct does not apply zero/empty fields
 // UpdateColumns from a struct does not apply zero/empty fields
 // Updates from a map does apply zero/empty fields
@@ -394,6 +395,38 @@ func TestExampleV2(t *testing.T) {
 			assert.Equal(t, 0, r8.InStockNumberDefault)
 			assert.Equal(t, 0, r8.InStockZeroDefault)
 			assert.Equal(t, 0, r8.InStockDBDefault)
+		}
+	})
+
+	t.Run("CreateAllWithZero", func(t *testing.T) {
+		//*******************************************************************************************************
+		// Create a new record with all columns set to empty or 0.
+		// This shows that Create applies empty string and 0 to Pointer fields.
+		//*******************************************************************************************************
+
+		r9 := Itemv2{
+			NameNoDefault:        "",
+			NameBlankDefault:     "",
+			NameTextDefault:      "",
+			NameDBDefault:        "",
+			InStockNoDefault:     0,
+			InStockNumberDefault: 0,
+			InStockZeroDefault:   0,
+			InStockDBDefault:     0,
+		}
+
+		// INSERT INTO `itemv2` (`name_no_default`,`name_blank_default`,`name_text_default`,`name_db_default`,`in_stock_no_default`,`in_stock_zero_default`,`in_stock_number_default`,`in_stock_db_default`,`created_at`,`updated_at`,`deleted_at`) VALUES ("","","NaN","",0,0,-1,0,"2026-06-19 23:01:58.608","2026-06-19 23:01:58.608",NULL) RETURNING `id`
+		if !assert.NoError(t, dbV2.Create(&r9).Error) {
+			return
+		} else if assert.GreaterOrEqual(t, r9.ID, uint(1)) {
+			assert.Equal(t, "", r9.NameNoDefault)
+			assert.Equal(t, "", r9.NameBlankDefault)   // <-- Gorm Default Applied
+			assert.NotEqual(t, "", r9.NameTextDefault) // <-- Gorm Default Applied
+			assert.Equal(t, "", r9.NameDBDefault)
+			assert.Equal(t, 0, r9.InStockNoDefault)
+			assert.NotEqual(t, 0, r9.InStockNumberDefault) // <-- Gorm Default Applied
+			assert.Equal(t, 0, r9.InStockZeroDefault)      // <-- Gorm Default Applied
+			assert.Equal(t, 0, r9.InStockDBDefault)
 		}
 	})
 }
